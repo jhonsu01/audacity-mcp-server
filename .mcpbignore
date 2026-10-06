@@ -1,9 +1,9 @@
 # Sources (dist/ holds the bundle, the native engine and the Audacity extension)
-src/
-test/
-scripts/
-native/
-extension/
+/src/
+/test/
+/scripts/
+/native/
+/extension/
 
 # Runtime does not need node_modules: dist/bundle.cjs is self-contained
 node_modules/
