@@ -1,5 +1,7 @@
 #include "dsp.h"
 
+#include "restore.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -222,6 +224,10 @@ const std::vector<EffectInfo>& effectCatalog()
         { "stereo", "", "Duplicate mono to two channels (stereo stays stereo)." },
         { "swap_channels", "", "Swap left and right." },
         { "pan", "value (-1 left .. 1 right)", "Pan a stereo (or mono, made stereo) signal." },
+        { "mouth_declick", "sensitivity=6 (1..10), max_click_ms=4, frequency=3000", "Remove mouth clicks, lip smacks and saliva ticks from voice: short impulses are rebuilt by LPC prediction." },
+        { "noise_reduction", "reduction_db=12, sensitivity=6, smoothing_bands=6, profile_start, profile_end, auto_percent=10", "Audacity's Noise Reduction. Noise profile from profile_start..profile_end seconds, or automatically from the quietest frames." },
+        { "declip", "threshold_db=-0.01 (-6..0)", "Rebuild clipped (saturated) peaks by LPC interpolation. Follow with normalize or limiter." },
+        { "click_removal", "threshold=200 (0..900), width=20 (0..40)", "Audacity's Click Removal (vinyl-style clicks; linear interpolation)." },
     };
     return list;
 }
@@ -301,8 +307,9 @@ double rmsDb(const Audio& a)
     return 10.0 * std::log10(sum / count);
 }
 
-bool apply(Audio& a, const Effect& e, std::string& error)
+bool apply(Audio& a, const Effect& e, std::string& error, std::string* report)
 {
+    std::string rep;
     const std::string& t = e.type;
     const size_t n = a.frames();
     const double rate = a.rate;
@@ -499,6 +506,33 @@ bool apply(Audio& a, const Effect& e, std::string& error)
         for (auto& s : a.ch[1]) {
             s *= std::min(1.0f, gr);
         }
+    } else if (t == "mouth_declick") {
+        restore::DeclickParams dp;
+        dp.sensitivity = e.get("sensitivity", 6.0);
+        dp.maxClickMs = e.get("max_click_ms", 4.0);
+        dp.frequency = e.get("frequency", 3000.0);
+        if (!restore::mouthDeclick(a, dp, rep, error)) {
+            return false;
+        }
+    } else if (t == "noise_reduction") {
+        restore::NoiseReductionParams np;
+        np.reductionDb = e.get("reduction_db", 12.0);
+        np.sensitivity = e.get("sensitivity", 6.0);
+        np.smoothingBands = static_cast<int>(e.get("smoothing_bands", 6.0));
+        np.profileStart = e.get("profile_start", -1.0);
+        np.profileEnd = e.get("profile_end", -1.0);
+        np.autoPercent = e.get("auto_percent", 10.0);
+        if (!restore::noiseReduction(a, np, rep, error)) {
+            return false;
+        }
+    } else if (t == "declip") {
+        if (!restore::declip(a, e.get("threshold_db", -0.01), rep, error)) {
+            return false;
+        }
+    } else if (t == "click_removal") {
+        if (!restore::clickRemoval(a, static_cast<int>(e.get("threshold", 200.0)), static_cast<int>(e.get("width", 20.0)), rep, error)) {
+            return false;
+        }
     } else {
         std::string names;
         for (const auto& info : effectCatalog()) {
@@ -506,6 +540,9 @@ bool apply(Audio& a, const Effect& e, std::string& error)
         }
         error = "Unknown effect \"" + t + "\". Available: " + names;
         return false;
+    }
+    if (report) {
+        *report = rep;
     }
     return true;
 }

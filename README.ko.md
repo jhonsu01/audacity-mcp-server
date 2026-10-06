@@ -58,9 +58,11 @@ Audacity 4는 훌륭한 오픈 소스 오디오 편집기지만 **스크립트 �
 
 ## 효과
 
-`gain` · `normalize` · `fade_in` · `fade_out`(선형, 지수, 로그, S 곡선) · `trim` · `pad` · `trim_silence` · `reverse` · `speed` · `invert` · `remove_dc` · `highpass` · `lowpass` · `bandpass` · `notch` · `eq` · `bass` · `treble` · `echo` · `compressor` · `limiter` · `noise_gate` · `mono` · `stereo` · `swap_channels` · `pan`
+`gain` · `normalize` · `fade_in` · `fade_out`(선형, 지수, 로그, S 곡선) · `trim` · `pad` · `trim_silence` · `reverse` · `speed` · `invert` · `remove_dc` · `highpass` · `lowpass` · `bandpass` · `notch` · `eq` · `bass` · `treble` · `echo` · `compressor` · `limiter` · `noise_gate` · `mono` · `stereo` · `swap_channels` · `pan` · **`mouth_declick`** · **`declip`** · **`noise_reduction`** · **`click_removal`**
 
 예시: `[{"type":"highpass","frequency":80},{"type":"compressor","threshold_db":-20,"ratio":3},{"type":"normalize","peak_db":-1}]`
+
+Voice cleanup / limpieza de voz: `[{"type":"declip"},{"type":"mouth_declick","sensitivity":6},{"type":"limiter","ceiling_db":-1}]`
 
 ## Audacity 안에서 (확장 기능)
 

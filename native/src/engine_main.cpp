@@ -397,9 +397,14 @@ std::string cmdProcess(const Value& job)
     if (!loadAudio(in, job.num("start", 0.0), job.num("end", 0.0), a, src, err)) {
         fail(err);
     }
+    json::Arr reports;
     for (const auto& e : effects) {
-        if (!dsp::apply(a, e, err)) {
+        std::string rep;
+        if (!dsp::apply(a, e, err, &rep)) {
             fail(e.type + ": " + err);
+        }
+        if (!rep.empty()) {
+            reports.raw(json::Obj().add("effect", e.type).raw("report", rep).str());
         }
     }
     SourceInfo cur = src;
@@ -416,6 +421,7 @@ std::string cmdProcess(const Value& job)
            .raw("result", fileResult(outPath, a, out))
            .add("peak_dbfs", dbfs(dsp::peak(a)))
            .add("effects_applied", static_cast<int>(effects.size()))
+           .raw("effect_reports", reports.str())
            .str();
 }
 

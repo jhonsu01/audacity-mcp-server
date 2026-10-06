@@ -4,7 +4,7 @@
   "title": "MCP Audio Tools",
   "description": "Split audio into files every N seconds, export the selection, add interval labels and import any audio file as a track. Companion of audacity-mcp-server.",
   "category": "audio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "thumbnail": "icon.png",
   "apiversion": 2,
   "ui_context": "ProjectOpened",

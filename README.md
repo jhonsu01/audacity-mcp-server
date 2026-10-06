@@ -58,9 +58,11 @@ Inspired by [VectorMagic-mcp-server](https://github.com/jhonsu01/VectorMagic-mcp
 
 ## Effects
 
-`gain` · `normalize` · `fade_in` · `fade_out` (linear, exponential, logarithmic, S-curve) · `trim` · `pad` · `trim_silence` · `reverse` · `speed` · `invert` · `remove_dc` · `highpass` · `lowpass` · `bandpass` · `notch` · `eq` · `bass` · `treble` · `echo` · `compressor` · `limiter` · `noise_gate` · `mono` · `stereo` · `swap_channels` · `pan`
+`gain` · `normalize` · `fade_in` · `fade_out` (linear, exponential, logarithmic, S-curve) · `trim` · `pad` · `trim_silence` · `reverse` · `speed` · `invert` · `remove_dc` · `highpass` · `lowpass` · `bandpass` · `notch` · `eq` · `bass` · `treble` · `echo` · `compressor` · `limiter` · `noise_gate` · `mono` · `stereo` · `swap_channels` · `pan` · **`mouth_declick`** · **`declip`** · **`noise_reduction`** · **`click_removal`**
 
 Example: `[{"type":"highpass","frequency":80},{"type":"compressor","threshold_db":-20,"ratio":3},{"type":"normalize","peak_db":-1}]`
+
+Voice cleanup / limpieza de voz: `[{"type":"declip"},{"type":"mouth_declick","sensitivity":6},{"type":"limiter","ceiling_db":-1}]`
 
 ## Inside Audacity (extension)
 

@@ -201,7 +201,14 @@ export function registerTools(server: McpServer): void {
         'highpass{frequency,q}, lowpass{frequency,q}, bandpass{frequency,q}, notch{frequency,q}, eq{frequency,gain_db,q}, ' +
         'bass{gain_db,frequency}, treble{gain_db,frequency}, echo{delay,decay}, compressor{threshold_db,ratio,attack,release,makeup_db}, ' +
         'limiter{ceiling_db,release}, noise_gate{threshold_db,attack,release,floor_db}, mono, stereo, swap_channels, pan{value}. ' +
-        'Curves: linear, exponential, logarithmic, scurve. Example: [{"type":"highpass","frequency":80},{"type":"normalize","peak_db":-1}].',
+        'Restoration: mouth_declick{sensitivity=6 (1..10), max_click_ms=4, frequency=3000} removes mouth clicks, lip smacks and saliva ' +
+        'ticks from voice (AR-residual detection + least-squares AR interpolation of the high band; voice pulses and consonants are left alone); ' +
+        'declip{threshold_db=-0.01} rebuilds clipped peaks (follow with limiter); noise_reduction{reduction_db=12, sensitivity=6, smoothing_bands=6, ' +
+        'profile_start, profile_end} is Audacity\'s Noise Reduction (automatic noise profile from the quietest frames when no region is given); ' +
+        'click_removal{threshold=200, width=20} is Audacity\'s Click Removal (vinyl clicks). ' +
+        'Curves: linear, exponential, logarithmic, scurve. Example: [{"type":"highpass","frequency":80},{"type":"normalize","peak_db":-1}]. ' +
+        'Voice cleanup: [{"type":"declip"},{"type":"mouth_declick"},{"type":"limiter","ceiling_db":-1}]. ' +
+        'The result includes effect_reports (e.g. how many clicks were repaired).',
       inputSchema: {
         input_path: z.string().describe('Absolute path of the audio file.'),
         effects: z.array(effectSchema).min(1).max(50).describe('Effects applied in order.'),

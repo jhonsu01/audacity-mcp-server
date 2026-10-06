@@ -13,7 +13,7 @@ if (-not $vs) { Write-Error 'No Visual Studio with C++ tools found'; exit 1 }
 $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
 
 $common = '/nologo /O2 /EHsc /std:c++17 /MT /utf-8 /W3 /DUNICODE /D_UNICODE /DNOMINMAX /D_CRT_SECURE_NO_WARNINGS'
-$srcs = 'src\audio.cpp src\codecs.cpp src\dsp.cpp'
+$srcs = 'src\audio.cpp src\codecs.cpp src\dsp.cpp src\restore.cpp'
 $bat = Join-Path $out 'build.bat'
 @"
 @echo off

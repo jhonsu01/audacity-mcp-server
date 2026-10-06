@@ -1,6 +1,6 @@
 {
   "name": "audacity-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server + Audacity 4 extension: split, trim, convert, mix, concatenate and apply effects to any audio with Audacity's own audio engine, from Claude (Windows).",
   "type": "module",
   "main": "dist/index.js",

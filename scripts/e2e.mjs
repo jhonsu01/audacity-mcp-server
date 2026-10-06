@@ -50,7 +50,7 @@ check(tools.length === 10, `10 tools exposed (${tools.map((t) => t.name).join(',
 
 const status = await call('get_audacity_status', {});
 check(status.ready && /libsndfile/.test(status.audio_engine.libsndfile), `engine ready: ${status.audio_engine.libsndfile}, Audacity ${status.audacity_version} at ${status.audacity_exe}`);
-check(status.effects?.length >= 20, `${status.effects?.length} effects in catalog`);
+check(status.effects?.length >= 30, `${status.effects?.length} effects in catalog`);
 
 const info = await call('get_audio_info', { input_path: toneA, analyze: true });
 check(info.success && Math.abs(info.info.duration_seconds - 40) < 0.01 && Math.abs(info.peak_dbfs + 6.02) < 0.1, `info: ${info.info?.duration_seconds} s, peak ${info.peak_dbfs?.toFixed(2)} dBFS`);
@@ -93,6 +93,60 @@ const mix = await call('mix_audio', { inputs: [{ path: toneA, gain_db: -6 }, { p
 check(mix.success && Math.abs(mix.result.duration_seconds - 50) < 0.01 && !mix.clipping_warning, `mix with offset -> ${mix.result?.duration_seconds} s`);
 const cat = await call('concat_audio', { inputs: [toneA, toneB], output_path: join(out, 'cat.ogg'), crossfade_seconds: 2 });
 check(cat.success && Math.abs(cat.result.duration_seconds - 58) < 0.01, `concat with 2 s crossfade -> ${cat.result?.duration_seconds} s`);
+
+// Restoration: a tone with 30 mouth-click-like bursts, and a clipped tone
+{
+  const rate = 44100, secs = 20, frames = rate * secs;
+  const buf = Buffer.alloc(44 + frames * 4);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + frames * 4, 4); buf.write('WAVE', 8);
+  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(2, 22);
+  buf.writeUInt32LE(rate, 24); buf.writeUInt32LE(rate * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34);
+  buf.write('data', 36); buf.writeUInt32LE(frames * 4, 40);
+  const clickAt = new Set(Array.from({ length: 30 }, (_, k) => Math.round((0.5 + k * 0.6) * rate)));
+  let burst = 0, burstPos = 0;
+  for (let i = 0; i < frames; i++) {
+    if (clickAt.has(i)) { burst = 1; burstPos = 0; }
+    let v = 0.2 * Math.sin((2 * Math.PI * 220 * i) / rate);
+    if (burst) { v += 0.3 * Math.exp(-burstPos / 12) * Math.sin(2 * Math.PI * 6000 * burstPos / rate); if (++burstPos > 60) burst = 0; }
+    const s = Math.round(Math.max(-1, Math.min(1, v)) * 32767);
+    buf.writeInt16LE(s, 44 + i * 4); buf.writeInt16LE(s, 46 + i * 4);
+  }
+  const clicky = join(srcDir, 'clicky.wav');
+  writeFileSync(clicky, buf);
+  const dc = await call('apply_effects', { input_path: clicky, output_path: join(out, 'declicked.wav'), effects: [{ type: 'mouth_declick' }] });
+  const rep = dc.effect_reports?.[0]?.report;
+  check(dc.success && rep.clicks_repaired >= 27 && rep.clicks_repaired <= 40, `mouth_declick repaired ${rep?.clicks_repaired} of 30 injected clicks`);
+  // Residual against the clean tone: mix (result + inverted clean tone), then measure its RMS.
+  for (let i = 0; i < frames; i++) {
+    const s = Math.round(0.2 * Math.sin((2 * Math.PI * 220 * i) / rate) * 32767);
+    buf.writeInt16LE(s, 44 + i * 4); buf.writeInt16LE(s, 46 + i * 4);
+  }
+  const clean = join(srcDir, 'clean.wav');
+  writeFileSync(clean, buf);
+  await call('apply_effects', { input_path: clean, output_path: join(out, 'clean_inv.wav'), effects: [{ type: 'invert' }], sample_format: 'float32' });
+  const residual = async (file, tag) => {
+    const m = await call('mix_audio', { inputs: [{ path: file }, { path: join(out, 'clean_inv.wav') }], output_path: join(out, `res_${tag}.wav`), sample_format: 'float32' });
+    return (await call('get_audio_info', { input_path: m.result.path, analyze: true })).rms_dbfs;
+  };
+  const before = await residual(clicky, 'before');
+  const after = await residual(join(out, 'declicked.wav'), 'after');
+  // Only the high band is rebuilt (the voice body below ~1.5 kHz is kept as recorded), so a little
+  // low-frequency leakage of each click stays, far below audibility.
+  check(after < before - 12, `click residual ${before.toFixed(1)} dBFS -> ${after.toFixed(1)} dBFS after mouth_declick`);
+
+  for (let i = 0; i < frames; i++) {
+    const s = Math.round(Math.max(-1, Math.min(1, 1.6 * Math.sin((2 * Math.PI * 220 * i) / rate))) * 32767);
+    buf.writeInt16LE(s, 44 + i * 4); buf.writeInt16LE(s, 46 + i * 4);
+  }
+  const clipped = join(srcDir, 'clipped.wav');
+  writeFileSync(clipped, buf);
+  const dp = await call('apply_effects', { input_path: clipped, output_path: join(out, 'declipped.wav'), effects: [{ type: 'declip' }, { type: 'limiter', ceiling_db: -1 }] });
+  check(dp.success && dp.effect_reports[0].report.clipped_runs_rebuilt > 1000 && dp.peak_dbfs <= -0.99, `declip rebuilt ${dp.effect_reports?.[0]?.report?.clipped_runs_rebuilt} clipped peaks, peak ${dp.peak_dbfs?.toFixed(2)} dBFS`);
+  const nr = await call('apply_effects', { input_path: toneA, output_path: join(out, 'nr.wav'), effects: [{ type: 'noise_reduction', reduction_db: 12 }] });
+  check(nr.success && /automatic/.test(nr.effect_reports[0].report.profile), `noise_reduction (Audacity algorithm) with ${nr.effect_reports?.[0]?.report?.profile}`);
+  const cr = await call('apply_effects', { input_path: clicky, output_path: join(out, 'clickremoval.wav'), effects: [{ type: 'click_removal' }] });
+  check(cr.success && typeof cr.effect_reports[0].report.clicks_repaired === 'number', `click_removal (Audacity algorithm) repaired ${cr.effect_reports?.[0]?.report?.clicks_repaired}`);
+}
 
 const ext = await call('install_audacity_extension', {});
 const extDir = join(fakeLocal, 'audacity', 'Audacity4', 'extensions', 'audacity-mcp-tools');

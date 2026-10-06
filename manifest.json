@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.3",
   "name": "audacity-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "display_name": "Audacity Bridge",
   "description": "Split, trim, convert, mix, join and apply effects to any audio with the audio engine of Audacity 4 on Windows, plus an in-app Audacity extension. Not affiliated with Audacity or Muse Group.",
-  "long_description": "Audacity Bridge lets Claude edit audio with the Audacity 4 you already have installed on Windows (tested with 4.0.1).\n\n- **Split** long recordings into N-second pieces (default 15 s), one folder per input, streaming so hours-long files are fine.\n- **Trim, convert and resample**: WAV, AIFF, FLAC, OGG Vorbis, Opus, CAF, W64, RF64, AU (and MP3/M4A/AAC/WMA with FFmpeg), 8 to 32-bit integer or 32/64-bit float, any sample rate, mono or stereo.\n- **Effects**: gain, normalize, fades, high/low/band-pass, notch, EQ, bass/treble, echo, compressor, limiter, noise gate, reverse, speed, pan, trim silence...\n- **Mix and join** files with gains, offsets, crossfades or gaps.\n- **Inside Audacity**: install the MCP Audio Tools extension to get Split into Files, Export Selection, Import Audio File and Labels Every N Seconds in Audacity's own menus, and open results in the editor.\n\nAudacity 4 has no scripting interface, so the connector uses Audacity's own codec libraries (libsndfile, mpg123) through a small native engine. Everything runs locally with no network access; files are never overwritten unless you ask. Audacity is a trademark of Muse Group; this project is not affiliated with or endorsed by Audacity or Muse Group.",
+  "long_description": "Audacity Bridge lets Claude edit audio with the Audacity 4 you already have installed on Windows (tested with 4.0.1).\n\n- **Split** long recordings into N-second pieces (default 15 s), one folder per input, streaming so hours-long files are fine.\n- **Trim, convert and resample**: WAV, AIFF, FLAC, OGG Vorbis, Opus, CAF, W64, RF64, AU (and MP3/M4A/AAC/WMA with FFmpeg), 8 to 32-bit integer or 32/64-bit float, any sample rate, mono or stereo.\n- **Voice cleanup**: remove mouth clicks and lip smacks, rebuild clipped peaks, Audacity's Noise Reduction and Click Removal.\n- **Effects**: gain, normalize, fades, high/low/band-pass, notch, EQ, bass/treble, echo, compressor, limiter, noise gate, reverse, speed, pan, trim silence...\n- **Mix and join** files with gains, offsets, crossfades or gaps.\n- **Inside Audacity**: install the MCP Audio Tools extension to get Split into Files, Export Selection, Import Audio File and Labels Every N Seconds in Audacity's own menus, and open results in the editor.\n\nAudacity 4 has no scripting interface, so the connector uses Audacity's own codec libraries (libsndfile, mpg123) through a small native engine. Everything runs locally with no network access; files are never overwritten unless you ask. Audacity is a trademark of Muse Group; this project is not affiliated with or endorsed by Audacity or Muse Group.",
   "author": {
     "name": "Jhon Supelano",
     "url": "https://github.com/jhonsu01"
@@ -52,7 +52,7 @@
     { "name": "split_audio", "description": "Cut one or many audio files into N-second pieces, one folder per input" },
     { "name": "convert_audio", "description": "Convert format, sample rate, bit depth or channels of one or many files" },
     { "name": "trim_audio", "description": "Keep a time range of a file, with optional fades" },
-    { "name": "apply_effects", "description": "Apply a chain of effects (gain, normalize, fades, EQ, filters, compressor, limiter, gate...)" },
+    { "name": "apply_effects", "description": "Apply a chain of effects (mouth de-click, declip, noise reduction, gain, normalize, fades, EQ, filters, compressor, limiter...)" },
     { "name": "mix_audio", "description": "Mix several files with per-file gain and start offset" },
     { "name": "concat_audio", "description": "Join files one after another with crossfade or gap" },
     { "name": "get_audio_info", "description": "Format, rate, channels, duration, peak and RMS level of a file" },

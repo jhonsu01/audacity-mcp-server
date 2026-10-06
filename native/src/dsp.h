@@ -33,7 +33,7 @@ struct EffectInfo {
 const std::vector<EffectInfo>& effectCatalog();
 
 // Applies one effect in place. Returns false with a message on invalid parameters.
-bool apply(Audio& audio, const Effect& effect, std::string& error);
+bool apply(Audio& audio, const Effect& effect, std::string& error, std::string* report = nullptr);
 
 // Channel mapping + sample-rate conversion (windowed-sinc).
 Audio convert(const Audio& in, int rate, int channels);
