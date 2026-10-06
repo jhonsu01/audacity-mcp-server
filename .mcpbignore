@@ -1,0 +1,28 @@
+# Sources (dist/ holds the bundle, the native engine and the Audacity extension)
+src/
+test/
+scripts/
+native/
+extension/
+
+# Runtime does not need node_modules: dist/bundle.cjs is self-contained
+node_modules/
+
+# Personal data / dev tooling / docs
+testMCP/
+*.wav
+*.flac
+*.mp3
+.github/
+.tmp/
+docs/
+tsconfig.json
+vitest.config.ts
+README*.md
+CHANGELOG.md
+*.mcpb
+.git/
+.gitignore
+.mcpbignore
+dist/**/*.map
+dist/**/*.js

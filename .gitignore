@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.mcpb
+.tmp/
+*.tsbuildinfo
+.env
+.env.*
+
+# Native build outputs (rebuilt by `npm run build:native`)
+native/build/
+extension/platform/
+
+# Personal recordings: never publish audio from this folder
+testMCP/
+*.wav
+*.flac
+*.mp3
+*.ogg
+*.opus
+*.m4a
+*.aiff
+*.aif

@@ -1,0 +1,59 @@
+{
+  "uri": "muse://extensions/audacity-mcp-tools",
+  "type": "macros",
+  "title": "MCP Audio Tools",
+  "description": "Split audio into files every N seconds, export the selection, add interval labels and import any audio file as a track. Companion of audacity-mcp-server.",
+  "category": "audio",
+  "version": "1.0.0",
+  "thumbnail": "icon.png",
+  "apiversion": 2,
+  "ui_context": "ProjectOpened",
+  "actions": [
+    {
+      "code": "status",
+      "title": "MCP Audio Tools: status",
+      "path": "status.js",
+      "show_on_appmenu": true
+    }
+  ],
+  "contributes": {
+    "audacity.effects": [
+      {
+        "id": "mcp-split-to-files",
+        "title": "Split into Files (MCP)",
+        "description": "Write the selection (or each selected track) as consecutive files of N seconds.",
+        "vendor": "audacity-mcp-server",
+        "group": "tools",
+        "script": "effects/tools.js",
+        "factory": "createSplit"
+      },
+      {
+        "id": "mcp-export-selection",
+        "title": "Export Selection to File (MCP)",
+        "description": "Write the selected audio to one file (WAV, FLAC, OGG, Opus, AIFF, CAF, W64).",
+        "vendor": "audacity-mcp-server",
+        "group": "tools",
+        "script": "effects/tools.js",
+        "factory": "createExport"
+      },
+      {
+        "id": "mcp-interval-labels",
+        "title": "Labels Every N Seconds (MCP)",
+        "description": "Add a label track with one region label every N seconds of the selection.",
+        "vendor": "audacity-mcp-server",
+        "group": "analyze",
+        "script": "effects/tools.js",
+        "factory": "createLabels"
+      },
+      {
+        "id": "mcp-import-file",
+        "title": "Import Audio File as Track (MCP)",
+        "description": "Add any audio file (WAV, FLAC, OGG, Opus, MP3, AIFF...) as a new track.",
+        "vendor": "audacity-mcp-server",
+        "group": "tools",
+        "script": "effects/tools.js",
+        "factory": "createImport"
+      }
+    ]
+  }
+}

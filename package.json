@@ -1,0 +1,58 @@
+{
+  "name": "audacity-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server + Audacity 4 extension: split, trim, convert, mix, concatenate and apply effects to any audio with Audacity's own audio engine, from Claude (Windows).",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "audacity-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build:native": "powershell -NoProfile -ExecutionPolicy Bypass -File native/build.ps1",
+    "build": "tsc && node scripts/copy-native.mjs && node scripts/bundle.mjs",
+    "build:all": "npm run build:native && npm run build",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e.mjs",
+    "pack:mcpb": "npm run build && npm ci --omit=dev && npx -y @anthropic-ai/mcpb pack . audacity-mcp-server.mcpb && npm install"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "audacity",
+    "audio",
+    "audio-editing",
+    "split-audio",
+    "convert-audio",
+    "effects",
+    "wav",
+    "flac",
+    "mp3",
+    "windows"
+  ],
+  "author": "Jhon Supelano (https://github.com/jhonsu01)",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jhonsu01/audacity-mcp-server.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "os": [
+    "win32"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
