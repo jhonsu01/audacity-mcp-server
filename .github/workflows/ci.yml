@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build-${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos
+            os: macos-14 # Apple Silicon runner; the binaries are universal (arm64 + x86_64)
+          - name: linux
+            os: ubuntu-22.04 # same glibc baseline as Audacity 4's AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # Audacity 4 is not installed on CI runners: the engine falls back to the same libsndfile /
+      # mpg123 libraries from the system (Linux, macOS) or the official libsndfile build (Windows).
+      - name: Audio libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsndfile1 libmpg123-0 ffmpeg
+      - name: Audio libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libsndfile mpg123 ffmpeg
+      - name: Audio libraries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2-win64.zip -OutFile sf.zip
+          Expand-Archive sf.zip -DestinationPath "$env:RUNNER_TEMP\sf"
+          $dir = (Get-ChildItem "$env:RUNNER_TEMP\sf" -Directory | Select-Object -First 1).FullName
+          "AUDACITY_DIR=$dir" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - run: npm ci
+      - name: Build native engine and extension library
+        run: npm run build:native
+      - name: Extension library smoke test (loaded like Audacity's MuseApi.Native)
+        run: npm run test:native
+      - run: npm run build
+      - run: npm test
+      - name: End-to-end over MCP stdio
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.name }}
+          path: |
+            native/out/
+            extension/platform/
+          if-no-files-found: error
+
+  package:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: .
+      - name: Check that all three platforms are present
+        run: |
+          ls -R native/out extension/platform
+          test -f native/out/win32-x64/aumcp-engine.exe
+          test -f native/out/darwin-universal/aumcp-engine
+          test -f native/out/linux-x64/aumcp-engine
+          test -f extension/platform/windows/x86_64/audacity_mcp_native.dll
+          test -f extension/platform/macos/universal/audacity_mcp_native.dylib
+          test -f extension/platform/linux/x86_64/audacity_mcp_native.so
+      - run: npm ci
+      - run: npm run build
+      - name: Validate and pack .mcpb (Windows + macOS + Linux)
+        run: |
+          npx -y @anthropic-ai/mcpb validate manifest.json
+          npm ci --omit=dev
+          npx -y @anthropic-ai/mcpb pack . audacity-mcp-server.mcpb
+          unzip -l audacity-mcp-server.mcpb | grep -E "aumcp-engine|audacity_mcp_native"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: audacity-mcp-server.mcpb
+          path: audacity-mcp-server.mcpb
+      - name: Attach to the GitHub release (tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" audacity-mcp-server.mcpb --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" audacity-mcp-server.mcpb --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md
+          fi

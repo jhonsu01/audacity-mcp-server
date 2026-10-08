@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  Deja que Claude edite audio con el <b>Audacity 4</b> instalado en tu PC con Windows:<br>
+  Deja que Claude edite audio con el <b>Audacity 4</b> instalado en tu equipo con Windows, macOS o Linux:<br>
   cortar, recortar, convertir, remuestrear, aplicar efectos, mezclar y unir, además de una <b>extensión dentro de Audacity</b>.
 </p>
 
@@ -78,9 +78,20 @@ Tras `install_audacity_extension` y reiniciar Audacity 4:
 
 Todos admiten deshacer y muestran barra de progreso.
 
+## Plataformas
+
+| | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| **Motor nativo** | x64 | universal (Apple Silicon + Intel) | x86_64 |
+| **Códecs de audio** | los del propio Audacity (`sndfile.dll`, `mpg123.dll`) | los de Audacity.app, o `libsndfile` + `mpg123` de Homebrew | `libsndfile` + `libmpg123` del sistema (la AppImage guarda los suyos dentro de la imagen) |
+| **Carpeta de extensiones** | `%LOCALAPPDATA%\Audacity\Audacity4\extensions` | `~/Library/Application Support/Audacity/Audacity4/extensions` | `~/.local/share/Audacity/Audacity4/extensions` · Flatpak: `~/.var/app/org.audacityteam.Audacity/data/Audacity/Audacity4/extensions` |
+| **Abrir en Audacity** | `Audacity4.exe` | `open -a Audacity` | AppImage · `audacity` · `flatpak run` |
+
+Linux: `sudo apt install libsndfile1 libmpg123-0` (Debian/Ubuntu) · `sudo dnf install libsndfile mpg123-libs` (Fedora) · `sudo pacman -S libsndfile mpg123` (Arch). macOS, si las librerías de Audacity no se pueden cargar por separado: `brew install libsndfile mpg123`. `get_audacity_status` muestra qué librerías se están usando.
+
 ## Requisitos
 
-- Windows 10/11 x64
+- Windows 10/11 x64, macOS 11+ (Apple Silicon o Intel) o Linux x86_64 (glibc 2.35+, p. ej. Ubuntu 22.04+)
 - **Audacity 4** (probado con **4.0.1**)
 - Node.js ≥ 20 (incluido en Claude Desktop para instalaciones `.mcpb`)
 - Opcional: FFmpeg (solo para exportar MP3/M4A/AAC/WMA o importar M4A/AAC/WMA/WavPack)
@@ -101,7 +112,8 @@ git clone https://github.com/jhonsu01/audacity-mcp-server.git
 cd audacity-mcp-server
 npm install
 npm run build:all
-claude mcp add audacity -- node "%CD%\dist\bundle.cjs"
+claude mcp add audacity -- node "$PWD/dist/bundle.cjs"        # macOS / Linux
+claude mcp add audacity -- node "%CD%\dist\bundle.cjs"      # Windows (cmd)
 ```
 
 `build:all` compila las partes nativas y necesita Visual Studio con la carga de trabajo de C++.

@@ -1,7 +1,8 @@
 // End-to-end test over real MCP stdio against dist/bundle.cjs (what the .mcpb runs).
 // Needs Windows + Audacity 4 installed. Usage: npm run build && npm run test:e2e
 // E2E_BUNDLE=<path to bundle.cjs> tests another build (e.g. the contents of an unpacked .mcpb).
-// Uses synthetic tones only. LOCALAPPDATA is redirected so the real Audacity extensions folder is untouched.
+// Uses synthetic tones only. The per-user data folder (LOCALAPPDATA / HOME / XDG_DATA_HOME) is redirected so
+// the real Audacity extensions folder is untouched. Runs on Windows, macOS and Linux.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'fs';
@@ -9,7 +10,18 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 const out = mkdtempSync(join(tmpdir(), 'aud-e2e-'));
-const fakeLocal = join(out, 'localappdata');
+const fakeHome = join(out, 'home');
+const fakeEnv = process.platform === 'win32'
+  ? { LOCALAPPDATA: join(fakeHome, 'AppData', 'Local') }
+  : process.platform === 'darwin' ? { HOME: fakeHome } : { HOME: fakeHome, XDG_DATA_HOME: join(fakeHome, '.local', 'share') };
+const extRoot = process.platform === 'win32'
+  ? join(fakeHome, 'AppData', 'Local', 'Audacity', 'Audacity4', 'extensions')
+  : process.platform === 'darwin'
+    ? join(fakeHome, 'Library', 'Application Support', 'Audacity', 'Audacity4', 'extensions')
+    : join(fakeHome, '.local', 'share', 'Audacity', 'Audacity4', 'extensions');
+const nativeLib = process.platform === 'win32' ? join('platform', 'windows', 'x86_64', 'audacity_mcp_native.dll')
+  : process.platform === 'darwin' ? join('platform', 'macos', 'universal', 'audacity_mcp_native.dylib')
+    : join('platform', 'linux', process.arch === 'arm64' ? 'arm64' : 'x86_64', 'audacity_mcp_native.so');
 
 // 40 s stereo 44.1 kHz 16-bit tone in a folder with non-ASCII characters
 function writeTone(path, seconds, freq, rate = 44100) {
@@ -37,7 +49,7 @@ const client = new Client({ name: 'e2e', version: '1.0.0' });
 await client.connect(new StdioClientTransport({
   command: process.execPath,
   args: [process.env.E2E_BUNDLE || 'dist/bundle.cjs'],
-  env: { ...process.env, LOCALAPPDATA: fakeLocal },
+  env: { ...process.env, ...fakeEnv },
 }));
 
 let failed = 0;
@@ -49,7 +61,7 @@ const { tools } = await client.listTools();
 check(tools.length === 10, `10 tools exposed (${tools.map((t) => t.name).join(', ')})`);
 
 const status = await call('get_audacity_status', {});
-check(status.ready && /libsndfile/.test(status.audio_engine.libsndfile), `engine ready: ${status.audio_engine.libsndfile}, Audacity ${status.audacity_version} at ${status.audacity_exe}`);
+check(status.ready && /libsndfile/.test(status.audio_engine.libsndfile), `engine ready on ${status.platform}: ${status.audio_engine.libsndfile} (${status.audio_engine.codecs_source}: ${status.audio_engine.libsndfile_path}), Audacity ${status.audacity_version ?? 'not installed'}`);
 check(status.effects?.length >= 30, `${status.effects?.length} effects in catalog`);
 
 const info = await call('get_audio_info', { input_path: toneA, analyze: true });
@@ -149,8 +161,8 @@ check(cat.success && Math.abs(cat.result.duration_seconds - 58) < 0.01, `concat 
 }
 
 const ext = await call('install_audacity_extension', {});
-const extDir = join(fakeLocal, 'audacity', 'Audacity4', 'extensions', 'audacity-mcp-tools');
-check(ext.success && existsSync(join(extDir, 'manifest.json')) && existsSync(join(extDir, 'platform', 'windows', 'x86_64', 'audacity_mcp_native.dll')), 'extension installs into the Audacity 4 extensions folder');
+const extDir = join(extRoot, 'audacity-mcp-tools');
+check(ext.success && existsSync(join(extDir, 'manifest.json')) && existsSync(join(extDir, nativeLib)), `extension installs into ${extRoot} with ${nativeLib}`);
 const st2 = await call('get_audacity_status', {});
 check(st2.extension.installed && st2.extension.up_to_date, `status sees extension v${st2.extension.installed_version}`);
 const rm = await call('install_audacity_extension', { uninstall: true });

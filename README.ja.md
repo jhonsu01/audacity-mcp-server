@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  Windows PC にインストールされた <b>Audacity 4</b> で Claude にオーディオを編集させましょう——<br>
+  Windows・macOS・Linux にインストールされた <b>Audacity 4</b> で Claude にオーディオを編集させましょう——<br>
   分割、トリミング、変換、リサンプリング、エフェクト、ミックス、結合、さらに <b>Audacity 内蔵の拡張機能</b>。
 </p>
 
@@ -78,9 +78,20 @@ Voice cleanup / limpieza de voz: `[{"type":"declip"},{"type":"mouth_declick","se
 
 すべて元に戻すに対応し、進捗バーを表示します。
 
+## プラットフォーム
+
+| | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| **ネイティブエンジン** | x64 | ユニバーサル（Apple Silicon + Intel） | x86_64 |
+| **オーディオコーデック** | Audacity 同梱（`sndfile.dll`、`mpg123.dll`） | Audacity.app 同梱、または Homebrew の `libsndfile` + `mpg123` | システムの `libsndfile` + `libmpg123`（AppImage のものはイメージ内に格納） |
+| **拡張機能フォルダー** | `%LOCALAPPDATA%\Audacity\Audacity4\extensions` | `~/Library/Application Support/Audacity/Audacity4/extensions` | `~/.local/share/Audacity/Audacity4/extensions` · Flatpak：`~/.var/app/org.audacityteam.Audacity/data/Audacity/Audacity4/extensions` |
+| **Audacity で開く** | `Audacity4.exe` | `open -a Audacity` | AppImage · `audacity` · `flatpak run` |
+
+Linux：`sudo apt install libsndfile1 libmpg123-0`（Debian/Ubuntu）· `sudo dnf install libsndfile mpg123-libs`（Fedora）· `sudo pacman -S libsndfile mpg123`（Arch）。macOS で Audacity 同梱のライブラリを単独で読み込めない場合：`brew install libsndfile mpg123`。使用中のライブラリは `get_audacity_status` で確認できます。
+
 ## 動作要件
 
-- Windows 10/11 x64
+- Windows 10/11 x64、macOS 11+（Apple Silicon または Intel）、Linux x86_64（glibc 2.35+、例：Ubuntu 22.04+）
 - **Audacity 4**（**4.0.1** で動作確認）
 - Node.js ≥ 20（`.mcpb` でインストールする場合は Claude Desktop に同梱）
 - 任意：FFmpeg（MP3/M4A/AAC/WMA の書き出し、または M4A/AAC/WMA/WavPack の読み込みのみ）
@@ -101,7 +112,8 @@ git clone https://github.com/jhonsu01/audacity-mcp-server.git
 cd audacity-mcp-server
 npm install
 npm run build:all
-claude mcp add audacity -- node "%CD%\dist\bundle.cjs"
+claude mcp add audacity -- node "$PWD/dist/bundle.cjs"        # macOS / Linux
+claude mcp add audacity -- node "%CD%\dist\bundle.cjs"      # Windows (cmd)
 ```
 
 `build:all` はネイティブ部分をビルドするため、C++ ワークロード付きの Visual Studio が必要です。

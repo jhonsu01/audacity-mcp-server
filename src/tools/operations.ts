@@ -57,13 +57,13 @@ function requireFfmpeg(format: OutputFormat): void {
 }
 
 export function checkInput(p: string): void {
-  if (!path.win32.isAbsolute(p)) throw new Error(`Input must be an absolute path: ${p}`);
+  if (!path.isAbsolute(p)) throw new Error(`Input must be an absolute path: ${p}`);
   if (!existsSync(p) || !statSync(p).isFile()) throw new Error(`Input file not found: ${p}`);
   if (!isKnownInput(p) && !resolveFfmpeg().path) {
     throw new Error(`Unrecognised audio extension: ${p}`);
   }
   if (!isNativeInput(p) && !resolveFfmpeg().path) {
-    throw new Error(`${path.win32.extname(p)} files need FFmpeg to be decoded (not found). Set FFMPEG_PATH.`);
+    throw new Error(`${path.extname(p)} files need FFmpeg to be decoded (not found). Set FFMPEG_PATH.`);
   }
 }
 
@@ -71,7 +71,7 @@ export function checkInput(p: string): void {
 export function collectInputs(inputPaths: string[] | undefined, inputDir: string | undefined, max = 500): string[] {
   let inputs = [...(inputPaths ?? [])];
   if (inputDir) {
-    if (!path.win32.isAbsolute(inputDir) || !existsSync(inputDir)) throw new Error(`input_dir not found or not absolute: ${inputDir}`);
+    if (!path.isAbsolute(inputDir) || !existsSync(inputDir)) throw new Error(`input_dir not found or not absolute: ${inputDir}`);
     inputs = inputs.concat(
       readdirSync(inputDir)
         .map((n) => path.join(inputDir, n))
@@ -163,7 +163,7 @@ export async function splitFile(args: {
   checkInput(args.input);
   const format = chooseFormat(args.output, undefined, args.input);
   requireFfmpeg(format);
-  if (!path.win32.isAbsolute(args.outputDir)) throw new Error(`output_dir must be absolute: ${args.outputDir}`);
+  if (!path.isAbsolute(args.outputDir)) throw new Error(`output_dir must be absolute: ${args.outputDir}`);
   const ff = needsFfmpeg(format);
   const engineDir = ff ? path.join(tempDir(), `split-${Date.now()}-${Math.random().toString(36).slice(2)}`) : args.outputDir;
   const job = {

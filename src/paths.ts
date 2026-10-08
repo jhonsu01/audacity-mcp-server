@@ -18,7 +18,7 @@ export function resolveOutputPath(opts: {
   exists?: (p: string) => boolean;
 }): { path: string } | { error: string } {
   const exists = opts.exists ?? existsSync;
-  const p = path.win32;
+  const p = path;
   if (opts.outputPath) {
     if (!p.isAbsolute(opts.outputPath)) return { error: `output_path must be an absolute path: ${opts.outputPath}` };
     const cur = p.extname(opts.outputPath).replace(/^\./, '').toLowerCase();
@@ -45,10 +45,12 @@ function sameExt(a: string, b: string): boolean {
 }
 
 export function sameFile(a: string, b: string): boolean {
-  return path.win32.resolve(a).toLowerCase() === path.win32.resolve(b).toLowerCase();
+  // Windows and macOS file systems are case-insensitive by default; Linux is not.
+  const fold = (s: string) => (process.platform === 'linux' ? s : s.toLowerCase());
+  return fold(path.resolve(a)) === fold(path.resolve(b));
 }
 
 /** File-name-safe stem of a path (used for per-input split folders). */
 export function stemOf(p: string): string {
-  return path.win32.basename(p).replace(/\.[^.]+$/, '');
+  return path.basename(p).replace(/\.[^.]+$/, '');
 }

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ENGINE_TIMEOUT_SEC, resolveEnginePath, resolveFfmpeg } from '../config.js';
 import { FFMPEG_INPUT_EXTENSIONS, NATIVE_INPUT_EXTENSIONS, OUTPUT_FORMATS, SAMPLE_FORMATS } from '../formats.js';
 import { stemOf } from '../paths.js';
-import { audacityRunning, audacityVersion, extensionStatus, installExtension, openInAudacity } from './audacity.js';
+import { audacityRunning, audacityVersion, extensionStatus, installExtension, openInAudacity, resolveAudacity } from './audacity.js';
 import {
   audioInfo, collectInputs, combineFiles, effectSchema, outputOptionsSchema, probe, processFile, splitFile,
 } from './operations.js';
@@ -350,13 +350,13 @@ export function registerTools(server: McpServer): void {
     async (args) => {
       try {
         for (const p of args.paths) {
-          if (!path.win32.isAbsolute(p) || !existsSync(p)) throw new Error(`File not found or not absolute: ${p}`);
+          if (!path.isAbsolute(p) || !existsSync(p)) throw new Error(`File not found or not absolute: ${p}`);
         }
         const st = await probe();
-        const exe = st['audacity_exe'] as string | undefined;
-        if (!exe) throw new Error('Audacity 4 not found. Set AUDACITY_DIR to its install folder.');
-        await openInAudacity(exe, args.paths);
-        return json({ success: true, audacity: exe, opened: args.paths });
+        const launcher = await resolveAudacity((st['audacity_exe'] as string | undefined) || undefined);
+        if (!launcher) throw new Error('Audacity 4 not found. Set AUDACITY_DIR to its install folder (Audacity.app on macOS, the AppImage on Linux).');
+        await openInAudacity(launcher, args.paths);
+        return json({ success: true, audacity: launcher.location, launched_as: launcher.kind, opened: args.paths });
       } catch (e) {
         return errorResult(e);
       }
@@ -397,20 +397,23 @@ export function registerTools(server: McpServer): void {
     },
     async () => {
       const st = await probe();
-      const exe = (st['audacity_exe'] as string | undefined) || '';
+      const launcher = await resolveAudacity((st['audacity_exe'] as string | undefined) || undefined);
       const ff = resolveFfmpeg();
       return json(
         {
           ready: st.success,
           error: st.error ?? (st['sndfile_error'] || undefined),
-          audacity_exe: exe || null,
-          audacity_version: (await audacityVersion(exe)) ?? null,
+          platform: `${process.platform}-${process.arch}`,
+          audacity: launcher ? launcher.location : null,
+          audacity_launch: launcher ? launcher.kind : null,
+          audacity_version: (await audacityVersion(launcher)) ?? null,
           audacity_running: await audacityRunning(),
           audio_engine: {
             engine: resolveEnginePath() ?? null,
             libsndfile: st['sndfile_version'] ?? null,
+            libsndfile_path: st['sndfile_library'] ?? null,
+            codecs_source: st['codecs_source'] ?? null,
             mp3_decoder: st['mp3_decoder'] ?? false,
-            codecs_from: st['audacity_bin_dir'] ?? null,
           },
           ffmpeg: ff.path ?? null,
           extension: extensionStatus(),
@@ -420,7 +423,7 @@ export function registerTools(server: McpServer): void {
           sample_formats_by_format: st['output_formats'] ?? null,
           effects: st['effects'] ?? null,
           timeout_sec: ENGINE_TIMEOUT_SEC,
-          hint: st.success ? undefined : 'Install Audacity 4 or set AUDACITY_DIR to its install folder.',
+          hint: st.success ? undefined : (st['sndfile_error'] as string | undefined) ?? 'Install Audacity 4 or set AUDACITY_DIR to its install folder.',
         },
         !st.success,
       );

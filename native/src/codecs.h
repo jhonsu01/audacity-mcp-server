@@ -1,9 +1,13 @@
-// Runtime binding to the codec libraries that ship with Audacity 4 (libsndfile and libmpg123).
-// Nothing is linked at build time: the DLLs are loaded from Audacity's own bin folder, so the
-// engine reads and writes exactly the formats the installed Audacity supports.
+// Runtime binding to the codec libraries of Audacity 4 (libsndfile and libmpg123).
+// Nothing is linked at build time. Search order:
+//   1. libraries already loaded in this process (the engine running inside Audacity),
+//   2. AUDACITY_DIR (install folder, Audacity4.exe, Audacity.app or an extracted AppImage),
+//   3. the default Audacity install location of the platform,
+//   4. the system libraries (Linux: libsndfile1 / libmpg123-0; macOS: Homebrew or MacPorts).
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 
 namespace aumcp {
@@ -67,10 +71,15 @@ enum : int {
 struct Sndfile {
     bool loaded = false;
     std::string error;
-    std::wstring dir;
+    std::string library; // full path (or soname) actually loaded, UTF-8
+    std::string source;  // "audacity" | "system" | "process"
     std::string version;
 
+#ifdef _WIN32
     SNDFILE* (*wchar_open)(const wchar_t*, int, SF_INFO*) = nullptr;
+#else
+    SNDFILE* (*open)(const char*, int, SF_INFO*) = nullptr;
+#endif
     int (*close)(SNDFILE*) = nullptr;
     sf_count_t (*readf_float)(SNDFILE*, float*, sf_count_t) = nullptr;
     sf_count_t (*writef_float)(SNDFILE*, const float*, sf_count_t) = nullptr;
@@ -98,6 +107,7 @@ struct mpg123_handle;
 struct Mpg123 {
     bool loaded = false;
     std::string error;
+    std::string library;
 
     int (*init)() = nullptr;
     mpg123_handle* (*create)(const char*, int*) = nullptr;
@@ -111,15 +121,23 @@ struct Mpg123 {
     const char* (*plain_strerror)(int) = nullptr;
 };
 
-// Folder that holds Audacity's codec DLLs. Order: DLLs already loaded in this process (when running
-// inside Audacity), AUDACITY_DIR (folder or Audacity4.exe), default install folders.
-std::wstring audacityBinDir();
-std::wstring audacityExePath();
-
 Sndfile& sndfile();
 Mpg123& mpg123();
 
-std::string toUtf8(const std::wstring& s);
-std::wstring fromUtf8(const std::string& s);
+// Opens an audio file with libsndfile using the platform's path encoding.
+SNDFILE* sfOpen(const std::filesystem::path& p, int mode, SF_INFO* info);
+
+// The Audacity installation found (UTF-8, empty when none): executable (Windows / Linux) or
+// Audacity.app (macOS), and the folder its codec libraries were loaded from.
+std::string audacityExePath();
+std::string audacityLibDir();
+
+// Platform name used for bundled binaries: "windows", "macos" or "linux".
+const char* platformName();
+
+std::string u8(const std::filesystem::path& p);
+std::filesystem::path pathFromU8(const std::string& s);
+inline std::string toUtf8(const std::filesystem::path& p) { return u8(p); }
+inline std::filesystem::path fromUtf8(const std::string& s) { return pathFromU8(s); }
 
 } // namespace aumcp

@@ -460,23 +460,6 @@ std::vector<double> burg(const double* x, size_t m, size_t p)
     return a;
 }
 
-// Extrapolates `count` samples after `hist` (oldest first) with the AR model of hist.
-std::vector<double> extrapolate(const std::vector<double>& hist, size_t order, size_t count)
-{
-    const auto a = burg(hist.data(), hist.size(), order);
-    std::vector<double> y(hist);
-    y.reserve(hist.size() + count);
-    for (size_t n = 0; n < count; ++n) {
-        double pred = 0.0;
-        const size_t t = y.size();
-        for (size_t k = 1; k < a.size() && k <= t; ++k) {
-            pred -= a[k] * y[t - k];
-        }
-        y.push_back(pred);
-    }
-    return std::vector<double>(y.end() - static_cast<std::ptrdiff_t>(count), y.end());
-}
-
 } // namespace
 
 namespace {
@@ -620,7 +603,11 @@ std::vector<float> zeroPhaseLowpass(const std::vector<float>& x, double rate, do
     };
     pass(false);
     pass(true);
-    return std::vector<float>(y.begin(), y.end());
+    std::vector<float> out(y.size());
+    for (size_t i = 0; i < y.size(); ++i) {
+        out[i] = static_cast<float>(y[i]);
+    }
+    return out;
 }
 
 // Repairs only the high band of c[a, b): the low band (voice body, below `crossover`) is kept as

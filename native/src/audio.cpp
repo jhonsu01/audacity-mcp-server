@@ -89,18 +89,25 @@ std::string sampleName(int subtype)
     }
 }
 
-std::string lowerExt(const std::wstring& path)
+std::string lowerExt(const std::filesystem::path& path)
 {
-    const size_t slash = path.find_last_of(L"\\/");
-    const size_t dot = path.find_last_of(L'.');
-    if (dot == std::wstring::npos || (slash != std::wstring::npos && dot < slash)) {
-        return {};
+    std::string e = u8(path.extension());
+    if (!e.empty() && e[0] == '.') {
+        e.erase(0, 1);
     }
-    std::string e = toUtf8(path.substr(dot + 1));
     for (auto& c : e) {
         c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     }
     return e;
+}
+
+FILE* openBinary(const std::filesystem::path& p)
+{
+#ifdef _WIN32
+    return _wfopen(p.c_str(), L"rb");
+#else
+    return fopen(p.c_str(), "rb");
+#endif
 }
 
 // ---------------------------------------------------------------- libsndfile reader
@@ -180,14 +187,14 @@ private:
     size_t m_pos = 0;
 };
 
-std::unique_ptr<Reader> openMp3(const std::wstring& path, std::string& error)
+std::unique_ptr<Reader> openMp3(const std::filesystem::path& path, std::string& error)
 {
     Mpg123& m = mpg123();
     if (!m.loaded) {
         error = m.error;
         return nullptr;
     }
-    FILE* fp = _wfopen(path.c_str(), L"rb");
+    FILE* fp = openBinary(path);
     if (!fp) {
         error = "Cannot open file";
         return nullptr;
@@ -291,7 +298,7 @@ std::unique_ptr<Reader> openMp3(const std::wstring& path, std::string& error)
 
 } // namespace
 
-std::string formatFromExtension(const std::wstring& path)
+std::string formatFromExtension(const std::filesystem::path& path)
 {
     const std::string e = lowerExt(path);
     if (e == "wav" || e == "wave") {
@@ -321,11 +328,14 @@ std::string formatFromExtension(const std::wstring& path)
     return {};
 }
 
-std::unique_ptr<Reader> openReader(const std::wstring& path, std::string& error)
+std::unique_ptr<Reader> openReader(const std::filesystem::path& path, std::string& error)
 {
     const std::string ext = lowerExt(path);
     if (ext == "mp3" || ext == "mp2" || ext == "mpga" || ext == "mpeg") {
-        return openMp3(path, error);
+        // mpg123 (Audacity's MP3 decoder) when available; otherwise libsndfile >= 1.1 built with MPEG support.
+        if (mpg123().loaded) {
+            return openMp3(path, error);
+        }
     }
     Sndfile& sf = sndfile();
     if (!sf.loaded) {
@@ -333,7 +343,7 @@ std::unique_ptr<Reader> openReader(const std::wstring& path, std::string& error)
         return nullptr;
     }
     SF_INFO info{};
-    SNDFILE* f = sf.wchar_open(path.c_str(), SFM_READ, &info);
+    SNDFILE* f = sfOpen(path, SFM_READ, &info);
     if (!f) {
         const std::string sfErr = sf.strerror(nullptr);
         // libsndfile does not read MPEG in this build: try mpg123 for mislabelled files
@@ -455,7 +465,7 @@ bool Writer::close(std::string* error)
     return rc == 0;
 }
 
-std::unique_ptr<Writer> openWriter(const std::wstring& path, const ResolvedOutput& out, std::string& error)
+std::unique_ptr<Writer> openWriter(const std::filesystem::path& path, const ResolvedOutput& out, std::string& error)
 {
     Sndfile& sf = sndfile();
     if (!sf.loaded) {
@@ -466,7 +476,7 @@ std::unique_ptr<Writer> openWriter(const std::wstring& path, const ResolvedOutpu
     info.samplerate = out.rate;
     info.channels = out.channels;
     info.format = out.sfFormat;
-    SNDFILE* f = sf.wchar_open(path.c_str(), SFM_WRITE, &info);
+    SNDFILE* f = sfOpen(path, SFM_WRITE, &info);
     if (!f) {
         error = std::string("Cannot create output file (") + out.format + "/" + out.sample + ", "
                 + std::to_string(out.rate) + " Hz, " + std::to_string(out.channels) + " ch): " + sf.strerror(nullptr);
@@ -490,7 +500,7 @@ std::unique_ptr<Writer> openWriter(const std::wstring& path, const ResolvedOutpu
     return w;
 }
 
-bool loadAudio(const std::wstring& path, double start, double end, Audio& audio, SourceInfo& info, std::string& error)
+bool loadAudio(const std::filesystem::path& path, double start, double end, Audio& audio, SourceInfo& info, std::string& error)
 {
     auto r = openReader(path, error);
     if (!r) {
@@ -534,7 +544,7 @@ bool loadAudio(const std::wstring& path, double start, double end, Audio& audio,
     return true;
 }
 
-bool saveAudio(const std::wstring& path, const Audio& input, const ResolvedOutput& out, std::string& error)
+bool saveAudio(const std::filesystem::path& path, const Audio& input, const ResolvedOutput& out, std::string& error)
 {
     Audio conv = dsp::convert(input, out.rate, out.channels);
     auto w = openWriter(path, out, error);
@@ -554,7 +564,8 @@ bool saveAudio(const std::wstring& path, const Audio& input, const ResolvedOutpu
         if (!w->write(buf.data(), n)) {
             error = "Write error (disk full?)";
             w->close();
-            _wremove(path.c_str());
+            std::error_code rmErr;
+            std::filesystem::remove(path, rmErr);
             return false;
         }
     }

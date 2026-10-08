@@ -27,7 +27,7 @@ struct ReadHandle {
 
 struct WriteHandle {
     std::unique_ptr<Writer> writer;
-    std::wstring path;
+    std::filesystem::path path;
     std::vector<float> scratch;
 };
 
@@ -92,7 +92,7 @@ int32_t writerOpen(const ext_value* a, uint32_t n, ext_value* r)
     if (!isString(a, n, 0) || !isString(a, n, 1) || !isNumber(a, n, 3) || !isNumber(a, n, 4)) {
         return EXT_STATUS_INVALID_ARGUMENT;
     }
-    const std::wstring path = fromUtf8(a[0].as_string);
+    const std::filesystem::path path = fromUtf8(a[0].as_string);
     OutputSpec spec;
     spec.format = a[1].as_string;
     spec.sample = isString(a, n, 2) ? a[2].as_string : "auto";
@@ -169,7 +169,7 @@ int32_t writerClose(const ext_value* a, uint32_t n, ext_value* r)
     std::string err;
     const bool good = h->writer->close(&err);
     const long long frames = h->writer->frames();
-    const std::wstring path = h->path;
+    const std::filesystem::path path = h->path;
     delete h;
     if (!good) {
         return error(r, err);

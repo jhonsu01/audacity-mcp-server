@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -34,7 +35,7 @@ protected:
 
 // Opens any format Audacity's libsndfile reads (WAV, AIFF, FLAC, OGG Vorbis, Opus, CAF, W64, RF64,
 // AU...) plus MP3/MP2 through mpg123.
-std::unique_ptr<Reader> openReader(const std::wstring& path, std::string& error);
+std::unique_ptr<Reader> openReader(const std::filesystem::path& path, std::string& error);
 
 // Requested output. Empty / zero values mean "same as the source" or "format default".
 struct OutputSpec {
@@ -58,7 +59,7 @@ struct ResolvedOutput {
 };
 
 bool resolveOutput(const OutputSpec& spec, const SourceInfo& source, ResolvedOutput& out, std::string& error);
-std::string formatFromExtension(const std::wstring& path);
+std::string formatFromExtension(const std::filesystem::path& path);
 
 class Writer
 {
@@ -70,13 +71,13 @@ public:
     const ResolvedOutput& output() const { return m_out; }
 
 private:
-    friend std::unique_ptr<Writer> openWriter(const std::wstring&, const ResolvedOutput&, std::string&);
+    friend std::unique_ptr<Writer> openWriter(const std::filesystem::path&, const ResolvedOutput&, std::string&);
     SNDFILE* m_file = nullptr;
     ResolvedOutput m_out;
     int64_t m_frames = 0;
 };
 
-std::unique_ptr<Writer> openWriter(const std::wstring& path, const ResolvedOutput& out, std::string& error);
+std::unique_ptr<Writer> openWriter(const std::filesystem::path& path, const ResolvedOutput& out, std::string& error);
 
 // Planar float buffer.
 struct Audio {
@@ -88,8 +89,8 @@ struct Audio {
 };
 
 // Reads [start, end) seconds (end <= 0: to the end of the file).
-bool loadAudio(const std::wstring& path, double start, double end, Audio& audio, SourceInfo& info, std::string& error);
-bool saveAudio(const std::wstring& path, const Audio& audio, const ResolvedOutput& out, std::string& error);
+bool loadAudio(const std::filesystem::path& path, double start, double end, Audio& audio, SourceInfo& info, std::string& error);
+bool saveAudio(const std::filesystem::path& path, const Audio& audio, const ResolvedOutput& out, std::string& error);
 
 std::vector<std::string> outputFormats();
 std::vector<std::string> sampleFormats(const std::string& format);

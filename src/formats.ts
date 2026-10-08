@@ -20,7 +20,7 @@ export const FFMPEG_INPUT_EXTENSIONS = ['m4a', 'aac', 'mp4', 'wma', 'wv', 'ac3',
 const EXT_BY_FORMAT: Record<string, string> = { rf64: 'wav', aiff: 'aiff' };
 
 export function extensionOf(p: string): string {
-  return path.win32.extname(p).replace(/^\./, '').toLowerCase();
+  return path.extname(p).replace(/^\./, '').toLowerCase();
 }
 
 export function isNativeInput(p: string): boolean {

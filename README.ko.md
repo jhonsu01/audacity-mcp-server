@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  Windows PC에 설치된 <b>Audacity 4</b>로 Claude가 오디오를 편집하게 하세요 —<br>
+  Windows, macOS, Linux에 설치된 <b>Audacity 4</b>로 Claude가 오디오를 편집하게 하세요 —<br>
   분할, 자르기, 변환, 리샘플링, 효과 적용, 믹스, 이어붙이기, 그리고 <b>Audacity 내장 확장 기능</b>까지.
 </p>
 
@@ -78,9 +78,20 @@ Voice cleanup / limpieza de voz: `[{"type":"declip"},{"type":"mouth_declick","se
 
 모두 실행 취소를 지원하고 진행률 표시줄을 보여 줍니다.
 
+## 플랫폼
+
+| | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| **네이티브 엔진** | x64 | 유니버설(Apple Silicon + Intel) | x86_64 |
+| **오디오 코덱** | Audacity 자체 라이브러리(`sndfile.dll`, `mpg123.dll`) | Audacity.app 내장 또는 Homebrew의 `libsndfile` + `mpg123` | 시스템 `libsndfile` + `libmpg123`(AppImage는 이미지 안에 자체 라이브러리 보관) |
+| **확장 기능 폴더** | `%LOCALAPPDATA%\Audacity\Audacity4\extensions` | `~/Library/Application Support/Audacity/Audacity4/extensions` | `~/.local/share/Audacity/Audacity4/extensions` · Flatpak: `~/.var/app/org.audacityteam.Audacity/data/Audacity/Audacity4/extensions` |
+| **Audacity에서 열기** | `Audacity4.exe` | `open -a Audacity` | AppImage · `audacity` · `flatpak run` |
+
+Linux: `sudo apt install libsndfile1 libmpg123-0`(Debian/Ubuntu) · `sudo dnf install libsndfile mpg123-libs`(Fedora) · `sudo pacman -S libsndfile mpg123`(Arch). macOS에서 Audacity 내장 라이브러리를 단독으로 불러올 수 없으면: `brew install libsndfile mpg123`. 사용 중인 라이브러리는 `get_audacity_status`에서 확인할 수 있습니다.
+
 ## 요구 사항
 
-- Windows 10/11 x64
+- Windows 10/11 x64, macOS 11+(Apple Silicon 또는 Intel) 또는 Linux x86_64(glibc 2.35+, 예: Ubuntu 22.04+)
 - **Audacity 4**(**4.0.1**에서 테스트)
 - Node.js ≥ 20(`.mcpb` 설치 시 Claude Desktop에 포함)
 - 선택: FFmpeg(MP3/M4A/AAC/WMA 내보내기 또는 M4A/AAC/WMA/WavPack 가져오기에만 필요)
@@ -101,7 +112,8 @@ git clone https://github.com/jhonsu01/audacity-mcp-server.git
 cd audacity-mcp-server
 npm install
 npm run build:all
-claude mcp add audacity -- node "%CD%\dist\bundle.cjs"
+claude mcp add audacity -- node "$PWD/dist/bundle.cjs"        # macOS / Linux
+claude mcp add audacity -- node "%CD%\dist\bundle.cjs"      # Windows (cmd)
 ```
 
 `build:all`은 네이티브 부분을 빌드하므로 C++ 워크로드가 포함된 Visual Studio가 필요합니다.

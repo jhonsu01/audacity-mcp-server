@@ -1,7 +1,9 @@
 // aumcp-engine.exe: headless audio engine used by the MCP server.
 // Reads one JSON job from stdin, writes one JSON result to stdout (UTF-8). Exit code 0 = success.
+#ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -30,22 +32,22 @@ struct Failure : std::runtime_error {
     throw Failure(msg);
 }
 
-std::wstring needPath(const Value& job, const char* key)
+fs::path needPath(const Value& job, const char* key)
 {
     const std::string p = job.str(key);
     if (p.empty()) {
         fail(std::string("Missing \"") + key + "\"");
     }
-    const std::wstring w = fromUtf8(p);
+    const fs::path w = fromUtf8(p);
     if (!fs::path(w).is_absolute()) {
         fail(std::string("\"") + key + "\" must be an absolute path: " + p);
     }
     return w;
 }
 
-std::wstring needInput(const Value& job, const char* key = "input")
+fs::path needInput(const Value& job, const char* key = "input")
 {
-    const std::wstring p = needPath(job, key);
+    const fs::path p = needPath(job, key);
     std::error_code ec;
     if (!fs::is_regular_file(p, ec)) {
         fail("Input file not found: " + toUtf8(p));
@@ -94,7 +96,7 @@ std::string outputJson(const ResolvedOutput& o)
            .str();
 }
 
-void ensureWritable(const std::wstring& path, bool overwrite)
+void ensureWritable(const fs::path& path, bool overwrite)
 {
     std::error_code ec;
     if (fs::exists(path, ec) && !overwrite) {
@@ -104,13 +106,13 @@ void ensureWritable(const std::wstring& path, bool overwrite)
     if (!parent.empty()) {
         fs::create_directories(parent, ec);
         if (ec) {
-            fail("Cannot create folder " + toUtf8(parent.wstring()) + ": " + ec.message());
+            fail("Cannot create folder " + toUtf8(parent) + ": " + ec.message());
         }
     }
 }
 
 // Output format for an explicit output path: the "format" option, else the extension.
-ResolvedOutput resolveFor(const std::wstring& outPath, OutputSpec spec, const SourceInfo& src)
+ResolvedOutput resolveFor(const fs::path& outPath, OutputSpec spec, const SourceInfo& src)
 {
     const std::string fromExt = formatFromExtension(outPath);
     if (spec.format.empty()) {
@@ -130,7 +132,7 @@ ResolvedOutput resolveFor(const std::wstring& outPath, OutputSpec spec, const So
     return out;
 }
 
-std::string fileResult(const std::wstring& path, const Audio& a, const ResolvedOutput& o)
+std::string fileResult(const fs::path& path, const Audio& a, const ResolvedOutput& o)
 {
     std::error_code ec;
     const auto bytes = fs::file_size(path, ec);
@@ -200,8 +202,12 @@ std::string cmdProbe()
     }
     return json::Obj()
            .add("success", sf.loaded)
-           .add("audacity_bin_dir", toUtf8(audacityBinDir()))
-           .add("audacity_exe", toUtf8(audacityExePath()))
+           .add("platform", platformName())
+           .add("audacity_bin_dir", audacityLibDir())
+           .add("audacity_exe", audacityExePath())
+           .add("sndfile_library", sf.library)
+           .add("codecs_source", sf.source)
+           .add("mp3_library", mp.library)
            .add("sndfile_version", sf.version)
            .add("sndfile_error", sf.error)
            .add("mp3_decoder", mp.loaded)
@@ -213,7 +219,7 @@ std::string cmdProbe()
 
 std::string cmdInfo(const Value& job)
 {
-    const std::wstring in = needInput(job);
+    const fs::path in = needInput(job);
     std::string err;
     auto r = openReader(in, err);
     if (!r) {
@@ -245,8 +251,8 @@ std::string cmdInfo(const Value& job)
 
 std::string cmdSplit(const Value& job)
 {
-    const std::wstring in = needInput(job);
-    const std::wstring outDir = needPath(job, "output_dir");
+    const fs::path in = needInput(job);
+    const fs::path outDir = needPath(job, "output_dir");
     const double seg = job.num("segment_seconds", 15.0);
     if (!(seg >= 0.05) || seg > 86400) {
         fail("segment_seconds must be between 0.05 and 86400");
@@ -295,7 +301,7 @@ std::string cmdSplit(const Value& job)
 
     std::string prefix = job.str("prefix");
     if (prefix.empty()) {
-        prefix = toUtf8(fs::path(in).stem().wstring());
+        prefix = toUtf8(in.stem());
     }
     for (const char* bad : { "\\", "/", ":", "*", "?", "\"", "<", ">", "|" }) {
         if (prefix.find(bad) != std::string::npos) {
@@ -305,11 +311,11 @@ std::string cmdSplit(const Value& job)
     const int width = std::max(3, static_cast<int>(std::to_string(count).size()));
     const int firstIndex = static_cast<int>(job.num("first_index", 1));
 
-    std::vector<std::wstring> names;
+    std::vector<fs::path> names;
     for (int64_t i = 0; i < count; ++i) {
-        char num[32];
-        std::snprintf(num, sizeof(num), "%0*lld", width, static_cast<long long>(i + firstIndex));
-        names.push_back(outDir + L"\\" + fromUtf8(prefix + "_" + num + "." + out.extension));
+        char num[64];
+        std::snprintf(num, sizeof(num), "%0*lld", std::min(width, 30), static_cast<long long>(i + firstIndex));
+        names.push_back(outDir / fromUtf8(prefix + "_" + num + "." + out.extension));
     }
     std::error_code ec;
     fs::create_directories(outDir, ec);
@@ -384,8 +390,8 @@ std::string cmdSplit(const Value& job)
 
 std::string cmdProcess(const Value& job)
 {
-    const std::wstring in = needInput(job);
-    const std::wstring outPath = needPath(job, "output_path");
+    const fs::path in = needInput(job);
+    const fs::path outPath = needPath(job, "output_path");
     const bool overwrite = job.flag("overwrite", false);
     if (fs::path(in) == fs::path(outPath)) {
         fail("output_path must be different from the input");
@@ -426,7 +432,7 @@ std::string cmdProcess(const Value& job)
 }
 
 struct Piece {
-    std::wstring path;
+    fs::path path;
     double gainDb = 0, offset = 0, start = 0, end = 0;
 };
 
@@ -462,7 +468,7 @@ std::vector<Piece> parsePieces(const Value& job)
 std::string cmdMixOrConcat(const Value& job, bool mix)
 {
     const auto pieces = parsePieces(job);
-    const std::wstring outPath = needPath(job, "output_path");
+    const fs::path outPath = needPath(job, "output_path");
     const bool overwrite = job.flag("overwrite", false);
     OutputSpec spec = outputSpec(job);
     std::vector<Audio> audios;
@@ -571,10 +577,12 @@ std::string cmdMixOrConcat(const Value& job, bool mix)
 
 } // namespace
 
-int wmain()
+int main()
 {
+#ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
+#endif
     std::stringstream ss;
     ss << std::cin.rdbuf();
     std::string result;

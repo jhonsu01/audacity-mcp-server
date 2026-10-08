@@ -17,11 +17,11 @@ export function pendingRuns(): number {
   return running;
 }
 
-/** Runs one JSON job through aumcp-engine.exe (stdin -> stdout). */
+/** Runs one JSON job through the native engine aumcp-engine (stdin -> stdout). */
 export async function runEngine(job: Record<string, unknown>, timeoutSec = ENGINE_TIMEOUT_SEC): Promise<EngineResult> {
   const exe = resolveEnginePath();
   if (!exe) {
-    return { success: false, error: 'Native engine (aumcp-engine.exe) not found next to the server. Reinstall the extension.' };
+    return { success: false, error: `Native engine for ${process.platform}-${process.arch} not found next to the server. Reinstall the extension.` };
   }
   running++;
   try {
@@ -58,7 +58,7 @@ export async function runEngine(job: Record<string, unknown>, timeoutSec = ENGIN
 
 function runFfmpeg(args: string[], timeoutSec = ENGINE_TIMEOUT_SEC): Promise<{ ok: boolean; error?: string }> {
   const ff = resolveFfmpeg();
-  if (!ff.path) return Promise.resolve({ ok: false, error: 'FFmpeg not found (set FFMPEG_PATH or add ffmpeg.exe to PATH)' });
+  if (!ff.path) return Promise.resolve({ ok: false, error: 'FFmpeg not found (set FFMPEG_PATH or add ffmpeg to PATH)' });
   return new Promise((resolve) => {
     const child = spawn(ff.path as string, ['-hide_banner', '-loglevel', 'error', '-nostdin', ...args], {
       windowsHide: true,

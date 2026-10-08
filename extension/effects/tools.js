@@ -43,9 +43,11 @@ function call(lib, name, args) {
     return lib.dispatch(name, args);
 }
 
+// Joins with the separator the folder already uses: "\" on Windows paths, "/" on macOS and Linux.
 function joinPath(dir, name) {
     const d = String(dir).replace(/[\\/]+$/, "");
-    return d + "\\" + name;
+    const sep = /^[A-Za-z]:\\/.test(d) || (d.indexOf("\\") >= 0 && d.indexOf("/") < 0) ? "\\" : "/";
+    return d + sep + name;
 }
 
 function safeName(text, fallback) {

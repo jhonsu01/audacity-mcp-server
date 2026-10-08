@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0] - 2026-10-07
+### Added
+- **macOS and Linux support** (Windows keeps working as before). One `.mcpb` ships the native engine for
+  Windows x64, macOS universal (Apple Silicon + Intel) and Linux x86_64, and the Audacity extension library
+  for each (`.dll`, `.dylib`, `.so`).
+- Codec discovery per platform: libraries already loaded inside Audacity, `AUDACITY_DIR` (install folder,
+  `Audacity.app` or an extracted AppImage), the default Audacity location, then the system libsndfile /
+  libmpg123 (apt, dnf, pacman, Homebrew, MacPorts). MP3 is read with libsndfile when mpg123 is missing.
+- Audacity extensions folder per platform (`QStandardPaths::AppLocalDataLocation`), including the Flatpak
+  sandbox on Linux; Audacity is opened with `open -a` on macOS and as AppImage / binary / Flatpak on Linux.
+- CMake build for all platforms, extension-library smoke test, unit tests and a GitHub Actions matrix
+  (Windows, macOS, Linux) that runs the end-to-end suite on every OS and packs the multi-platform `.mcpb`.
+
+### Changed
+- `get_audacity_status` reports the platform, the libsndfile in use and where it came from.
+
 ## [1.1.0] - 2026-10-06
 ### Added
 - `mouth_declick` effect: removes mouth clicks, lip smacks and saliva ticks from voice recordings.

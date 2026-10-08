@@ -20,3 +20,5 @@ testMCP/
 *.m4a
 *.aiff
 *.aif
+native/out/
+native/build-*/

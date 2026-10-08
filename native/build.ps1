@@ -23,6 +23,8 @@ mkdir "$out\obj-exe" 2>nul
 mkdir "$out\obj-dll" 2>nul
 cl $common src\engine_main.cpp $srcs /Fo"$out\obj-exe\\" /Fe"$out\aumcp-engine.exe" /link /SUBSYSTEM:CONSOLE || exit /b 1
 cl $common /LD src\extension.cpp $srcs /Fo"$out\obj-dll\\" /Fe"$out\audacity_mcp_native.dll" || exit /b 1
+mkdir "$out\obj-test" 2>nul
+cl $common tests\ext_smoke.cpp /Fo"$out\obj-test\\" /Fe"$out\ext_smoke.exe" || exit /b 1
 "@ | Set-Content -Encoding ASCII $bat
 cmd /c "`"$bat`""
 if ($LASTEXITCODE -ne 0) { Write-Error "Native build failed ($LASTEXITCODE)"; exit 1 }

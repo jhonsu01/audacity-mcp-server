@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  让 Claude 使用你 Windows 电脑上安装的 <b>Audacity 4</b> 编辑音频——<br>
+  让 Claude 使用你的 Windows、macOS 或 Linux 电脑上安装的 <b>Audacity 4</b> 编辑音频——<br>
   分割、裁剪、转换、重采样、添加效果、混音和拼接，另附一个<b>Audacity 内置扩展</b>。
 </p>
 
@@ -78,9 +78,20 @@ Voice cleanup / limpieza de voz: `[{"type":"declip"},{"type":"mouth_declick","se
 
 全部支持撤销并显示进度条。
 
+## 平台
+
+| | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| **原生引擎** | x64 | 通用（Apple Silicon + Intel） | x86_64 |
+| **音频编解码库** | Audacity 自带（`sndfile.dll`、`mpg123.dll`） | Audacity.app 自带，或 Homebrew 的 `libsndfile` + `mpg123` | 系统的 `libsndfile` + `libmpg123`（AppImage 的库封装在镜像内） |
+| **扩展文件夹** | `%LOCALAPPDATA%\Audacity\Audacity4\extensions` | `~/Library/Application Support/Audacity/Audacity4/extensions` | `~/.local/share/Audacity/Audacity4/extensions` · Flatpak：`~/.var/app/org.audacityteam.Audacity/data/Audacity/Audacity4/extensions` |
+| **在 Audacity 中打开** | `Audacity4.exe` | `open -a Audacity` | AppImage · `audacity` · `flatpak run` |
+
+Linux：`sudo apt install libsndfile1 libmpg123-0`（Debian/Ubuntu）· `sudo dnf install libsndfile mpg123-libs`（Fedora）· `sudo pacman -S libsndfile mpg123`（Arch）。macOS 上若无法单独加载 Audacity 自带的库：`brew install libsndfile mpg123`。`get_audacity_status` 会显示正在使用的库。
+
 ## 系统要求
 
-- Windows 10/11 x64
+- Windows 10/11 x64、macOS 11+（Apple Silicon 或 Intel）或 Linux x86_64（glibc 2.35+，如 Ubuntu 22.04+）
 - **Audacity 4**（已在 **4.0.1** 上测试）
 - Node.js ≥ 20（通过 `.mcpb` 安装时由 Claude Desktop 自带）
 - 可选：FFmpeg（仅用于导出 MP3/M4A/AAC/WMA 或导入 M4A/AAC/WMA/WavPack）
@@ -101,7 +112,8 @@ git clone https://github.com/jhonsu01/audacity-mcp-server.git
 cd audacity-mcp-server
 npm install
 npm run build:all
-claude mcp add audacity -- node "%CD%\dist\bundle.cjs"
+claude mcp add audacity -- node "$PWD/dist/bundle.cjs"        # macOS / Linux
+claude mcp add audacity -- node "%CD%\dist\bundle.cjs"      # Windows (cmd)
 ```
 
 `build:all` 会编译原生部分，需要安装带 C++ 工作负载的 Visual Studio。
