@@ -154,6 +154,10 @@ export async function installExtension(remove: boolean): Promise<Record<string, 
       await fs.rm(t, { recursive: true, force: true });
       await fs.mkdir(t, { recursive: true });
       await fs.cp(src, t, { recursive: true });
+      if (process.platform === 'darwin') {
+        // Audacity would refuse a quarantined native library
+        await run('xattr', ['-dr', 'com.apple.quarantine', t]);
+      }
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

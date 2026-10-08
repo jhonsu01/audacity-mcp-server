@@ -45,10 +45,22 @@ const toneB = join(srcDir, 'toneB.wav');
 writeTone(toneA, 40, 440);
 writeTone(toneB, 20, 660);
 
+// macOS / Linux: simulate an extractor that dropped the executable bit; the server must restore it.
+const bundle = process.env.E2E_BUNDLE || 'dist/bundle.cjs';
+if (process.platform !== 'win32') {
+  const { chmodSync, readdirSync: rd, existsSync: ex } = await import('fs');
+  const { dirname: dn } = await import('path');
+  const binRoot = join(dn(bundle), 'bin');
+  for (const d of ex(binRoot) ? rd(binRoot) : []) {
+    const f = join(binRoot, d, 'aumcp-engine');
+    if (ex(f)) chmodSync(f, 0o644);
+  }
+}
+
 const client = new Client({ name: 'e2e', version: '1.0.0' });
 await client.connect(new StdioClientTransport({
   command: process.execPath,
-  args: [process.env.E2E_BUNDLE || 'dist/bundle.cjs'],
+  args: [bundle],
   env: { ...process.env, ...fakeEnv },
 }));
 

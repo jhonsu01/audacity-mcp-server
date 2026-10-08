@@ -1,4 +1,5 @@
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
+import { accessSync, chmodSync, constants } from 'fs';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -17,12 +18,41 @@ export function pendingRuns(): number {
   return running;
 }
 
+const prepared = new Set<string>();
+
+/**
+ * macOS / Linux: archive extractors do not always keep the executable bit, and macOS tags downloaded
+ * files with com.apple.quarantine (Gatekeeper then refuses to run the ad-hoc-signed engine).
+ * Fix both once per binary, silently.
+ */
+export function prepareBinary(file: string): void {
+  if (process.platform === 'win32' || prepared.has(file)) return;
+  prepared.add(file);
+  try {
+    accessSync(file, constants.X_OK);
+  } catch {
+    try {
+      chmodSync(file, 0o755);
+    } catch {
+      // read-only install: spawn will report the error
+    }
+  }
+  if (process.platform === 'darwin') {
+    try {
+      execFileSync('xattr', ['-d', 'com.apple.quarantine', file], { stdio: 'ignore' });
+    } catch {
+      // not quarantined
+    }
+  }
+}
+
 /** Runs one JSON job through the native engine aumcp-engine (stdin -> stdout). */
 export async function runEngine(job: Record<string, unknown>, timeoutSec = ENGINE_TIMEOUT_SEC): Promise<EngineResult> {
   const exe = resolveEnginePath();
   if (!exe) {
     return { success: false, error: `Native engine for ${process.platform}-${process.arch} not found next to the server. Reinstall the extension.` };
   }
+  prepareBinary(exe);
   running++;
   try {
     return await new Promise<EngineResult>((resolve) => {
